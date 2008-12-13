@@ -89,7 +89,7 @@ pecan_contact_update (PecanContact *contact)
 
     g_return_if_fail (contact->contactlist);
 
-    account = msn_session_get_account (contact->contactlist->session);
+    account = msn_session_get_user_data (contact->contactlist->session);
 
     if (contact->status)
         purple_prpl_got_user_status (account, contact->passport, contact->status, NULL);
@@ -201,14 +201,14 @@ pecan_contact_set_friendly_name (PecanContact *contact,
 
     {
         PurpleAccount *account;
-        PurpleConnection *gc;
+        PurpleConnection *connection;
         MsnSession *session;
 
         session = contact->contactlist->session;
-        account = msn_session_get_account (session);
-        gc = purple_account_get_connection (account);
+        account = msn_session_get_user_data (session);
+        connection = purple_account_get_connection (account);
 
-        purple_buddy_set_nickname (gc, contact->passport, contact->friendly_name);
+        purple_buddy_set_nickname (connection, contact->passport, contact->friendly_name);
     }
 
     /** @todo temporarily disable this until we have proper server-side aliases
@@ -285,14 +285,14 @@ pecan_contact_set_store_name (PecanContact *contact,
 
     {
         PurpleAccount *account;
-        PurpleConnection *gc;
+        PurpleConnection *connection;
         MsnSession *session;
 
         session = contact->contactlist->session;
-        account = msn_session_get_account (session);
-        gc = purple_account_get_connection (account);
+        account = msn_session_get_user_data (session);
+        connection = purple_account_get_connection (account);
 
-        purple_buddy_set_displayname (gc, contact->passport, contact->store_name);
+        purple_buddy_set_displayname (connection, contact->passport, contact->store_name);
     }
 
     /** @todo temporarily disable this until we have proper server-side aliases
@@ -431,7 +431,7 @@ pecan_contact_add_group_id (PecanContact *contact,
 
         contactlist = contact->contactlist;
         group_name = pecan_contactlist_find_group_name (contactlist, group_guid);
-        account = msn_session_get_account (contactlist->session);
+        account = msn_session_get_user_data (contactlist->session);
 
         /* If this contact is in the no-group, remove him, since now he is in a
          * group. */

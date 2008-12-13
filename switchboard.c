@@ -79,9 +79,6 @@ open_cb (PecanNode *conn,
 
     {
         MsnTransaction *trans;
-        PurpleAccount *account;
-
-        account = session->account;
 
         if (msn_switchboard_is_invited (swboard))
         {
@@ -360,7 +357,7 @@ msn_switchboard_add_user(MsnSwitchBoard *swboard, const char *user)
 
     g_return_if_fail(swboard);
 
-    account = swboard->session->account;
+    account = msn_session_get_user_data (swboard->session);
 
     swboard->users = g_list_prepend(swboard->users, g_strdup(user));
     swboard->current_users++;
@@ -404,7 +401,7 @@ msn_switchboard_add_user(MsnSwitchBoard *swboard, const char *user)
 
             swboard->chat_id = swboard->session->conv_seq++;
             swboard->flag |= MSN_SB_FLAG_IM;
-            swboard->conv = serv_got_joined_chat(account->gc,
+            swboard->conv = serv_got_joined_chat(purple_account_get_connection (account),
                                                  swboard->chat_id,
                                                  "MSN Chat");
 
@@ -450,17 +447,16 @@ msn_switchboard_get_conv(MsnSwitchBoard *swboard)
 {
     PurpleAccount *account;
 
-    g_return_val_if_fail(swboard, NULL);
+    g_return_val_if_fail (swboard, NULL);
 
     if (swboard->conv != NULL)
         return swboard->conv;
 
     pecan_warning ("switchboard with unassigned conversation");
 
-    account = swboard->session->account;
+    account = msn_session_get_user_data (swboard->session);
 
-    return (swboard->conv = purple_conversation_new(PURPLE_CONV_TYPE_IM,
-                                                    account, swboard->im_user));
+    return (swboard->conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, account, swboard->im_user));
 }
 
 static void
@@ -833,36 +829,30 @@ bye_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
 }
 
 static void
-iro_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
+iro_cmd (MsnCmdProc *cmdproc,
+         MsnCommand *cmd)
 {
-    PurpleAccount *account;
-    PurpleConnection *gc;
     MsnSwitchBoard *swboard;
 
-    account = cmdproc->session->account;
-    gc = account->gc;
     swboard = cmdproc->data;
+
     g_return_if_fail (swboard);
 
-    swboard->total_users = atoi(cmd->params[2]);
+    swboard->total_users = atoi (cmd->params[2]);
 
-    msn_switchboard_add_user(swboard, cmd->params[3]);
+    msn_switchboard_add_user (swboard, cmd->params[3]);
 }
 
 static void
 joi_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
 {
     MsnSession *session;
-    PurpleAccount *account;
-    PurpleConnection *gc;
     MsnSwitchBoard *swboard;
     const char *passport;
 
     passport = cmd->params[0];
 
     session = cmdproc->session;
-    account = session->account;
-    gc = account->gc;
     swboard = cmdproc->data;
     g_return_if_fail (swboard);
 
@@ -945,15 +935,19 @@ ack_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
 static void
 out_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
 {
-    PurpleConnection *gc;
     MsnSwitchBoard *swboard;
 
-    gc = cmdproc->session->account->gc;
     swboard = cmdproc->data;
     g_return_if_fail (swboard);
 
     if (swboard->current_users > 1)
-        serv_got_chat_left(gc, swboard->chat_id);
+    {
+        PurpleAccount *account;
+        PurpleConnection *connection;
+        account = msn_session_get_user_data (cmdproc->session);
+        connection = purple_account_get_connection (account);
+        serv_got_chat_left (connection, swboard->chat_id);
+    }
 
     msn_switchboard_disconnect(swboard);
 }
@@ -996,7 +990,6 @@ usr_cmd(MsnCmdProc *cmdproc, MsnCommand *cmd)
 static void
 plain_msg(MsnCmdProc *cmdproc, MsnMessage *msg)
 {
-    PurpleConnection *gc;
     MsnSwitchBoard *swboard;
     const char *body;
     char *body_str;
@@ -1006,7 +999,6 @@ plain_msg(MsnCmdProc *cmdproc, MsnMessage *msg)
     const char *passport;
     const char *value;
 
-    gc = cmdproc->session->account->gc;
     swboard = cmdproc->data;
     g_return_if_fail (swboard);
 
@@ -1050,31 +1042,36 @@ plain_msg(MsnCmdProc *cmdproc, MsnMessage *msg)
 
     swboard->flag |= MSN_SB_FLAG_IM;
 
-    if (swboard->current_users > 1 ||
-        ((swboard->conv != NULL) &&
-         purple_conversation_get_type(swboard->conv) == PURPLE_CONV_TYPE_CHAT))
     {
-        /* If current_users is always ok as it should then there is no need to
-         * check if this is a chat. */
-        if (swboard->current_users <= 1)
-            pecan_warning ("plain_msg: current_users=[%d]", swboard->current_users);
+        PurpleAccount *account;
+        PurpleConnection *connection;
 
-        serv_got_chat_in(gc, swboard->chat_id, passport, 0, body_final,
-                         time(NULL));
-        if (swboard->conv == NULL)
+        account = msn_session_get_user_data (cmdproc->session);
+        connection = purple_account_get_connection (account);
+
+        if (swboard->current_users > 1 ||
+            (swboard->conv && purple_conversation_get_type (swboard->conv) == PURPLE_CONV_TYPE_CHAT))
         {
-            swboard->conv = purple_find_chat(gc, swboard->chat_id);
-            swboard->flag |= MSN_SB_FLAG_IM;
+            /* If current_users is always ok as it should then there is no need to
+             * check if this is a chat. */
+            if (swboard->current_users <= 1)
+                pecan_warning ("plain_msg: current_users=[%d]", swboard->current_users);
+
+            serv_got_chat_in (connection, swboard->chat_id, passport, 0, body_final, time (NULL));
+            if (!swboard->conv)
+            {
+                swboard->conv = purple_find_chat (connection, swboard->chat_id);
+                swboard->flag |= MSN_SB_FLAG_IM;
+            }
         }
-    }
-    else
-    {
-        serv_got_im(gc, passport, body_final, 0, time(NULL));
-        if (swboard->conv == NULL)
+        else
         {
-            swboard->conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_IM,
-                                                                  passport, purple_connection_get_account(gc));
-            swboard->flag |= MSN_SB_FLAG_IM;
+            serv_got_im (connection, passport, body_final, 0, time (NULL));
+            if (!swboard->conv)
+            {
+                swboard->conv = purple_find_conversation_with_account (PURPLE_CONV_TYPE_IM, passport, account);
+                swboard->flag |= MSN_SB_FLAG_IM;
+            }
         }
     }
 
@@ -1088,8 +1085,11 @@ msn_handwritten_msg_show(MsnSwitchBoard *swboard, const char* msgid, const char*
     guchar *guc;
     size_t body_len;
     PurpleAccount *account;
+    PurpleConnection *connection;
     
-    account = swboard->session->account;
+    account = msn_session_get_user_data (swboard->session);
+    connection = purple_account_get_connection (account);
+
     guc = purple_base64_decode(data, &body_len);
     if (!guc || !body_len) 
         return;
@@ -1099,7 +1099,7 @@ msn_handwritten_msg_show(MsnSwitchBoard *swboard, const char* msgid, const char*
     if (swboard->conv == NULL)
     {
         if (swboard->current_users > 1) 
-            swboard->conv = purple_find_chat(account->gc, swboard->chat_id);
+            swboard->conv = purple_find_chat(connection, swboard->chat_id);
         else
         {
             swboard->conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_IM,
@@ -1118,10 +1118,10 @@ msn_handwritten_msg_show(MsnSwitchBoard *swboard, const char* msgid, const char*
     if (swboard->current_users > 1 ||
         ((swboard->conv != NULL) &&
          purple_conversation_get_type(swboard->conv) == PURPLE_CONV_TYPE_CHAT))
-        serv_got_chat_in(account->gc, swboard->chat_id, passport, 0, msgid,
+        serv_got_chat_in(connection, swboard->chat_id, passport, 0, msgid,
                          time(NULL));
     else
-        serv_got_im(account->gc, passport, msgid, 0, time(NULL));
+        serv_got_im(connection, passport, msgid, 0, time(NULL));
 
     g_free(guc);
 }
@@ -1146,20 +1146,22 @@ msn_handwritten_msg(MsnCmdProc *cmdproc, MsnMessage *msg)
 static void
 control_msg(MsnCmdProc *cmdproc, MsnMessage *msg)
 {
-    PurpleConnection *gc;
     MsnSwitchBoard *swboard;
     char *passport;
 
-    gc = cmdproc->session->account->gc;
     swboard = cmdproc->data;
     passport = msg->remote_user;
 
     g_return_if_fail (swboard);
+
     if (swboard->current_users == 1 &&
         msn_message_get_attr(msg, "TypingUser") != NULL)
     {
-        serv_got_typing(gc, passport, MSN_TYPING_RECV_TIMEOUT,
-                        PURPLE_TYPING);
+        PurpleAccount *account;
+        PurpleConnection *connection;
+        account = msn_session_get_user_data (cmdproc->session);
+        connection = purple_account_get_connection (account);
+        serv_got_typing (connection, passport, MSN_TYPING_RECV_TIMEOUT, PURPLE_TYPING);
     }
 }
 
@@ -1168,18 +1170,20 @@ datacast_msg (MsnCmdProc *cmdproc,
               MsnMessage *msg)
 {
     PurpleAccount *account;
+    PurpleConnection *connection;
     GHashTable *body;
     const char *id, *passport;
     body = msn_message_get_hashtable_from_body(msg);
 
     id = g_hash_table_lookup(body, "ID");
 
-    account = cmdproc->session->account;
+    account = msn_session_get_user_data (cmdproc->session);
+    connection = purple_account_get_connection (account);
     passport = msg->remote_user;
 
     if (strcmp (id, "1") == 0)
     {
-        serv_got_attention(account->gc, passport, MSN_NUDGE);
+        serv_got_attention (connection, passport, MSN_NUDGE);
     }
     else if (strcmp (id, "2") == 0)
     {
@@ -1191,8 +1195,8 @@ datacast_msg (MsnCmdProc *cmdproc,
     }
     else
     {
-        pecan_warning ("got unknown datacast with ID %s\n", id);
-        serv_got_attention(account->gc, passport, MSN_NUDGE);
+        pecan_warning ("Got unknown datacast with ID %s.\n", id);
+        serv_got_attention (connection, passport, MSN_NUDGE);
     }
 }
 
