@@ -1,0 +1,30 @@
+This is an alternative implementation of the MSN protocol plug-in for
+libpurple.
+
+It's based on the code from 2.2.2 but slowly becoming a completely different
+code.
+
+Compared to Pidgin's official MSN plug-in:
+
+ * Faster log-in
+ * Fewer connection issues
+ * Experimental direct connection support (fast file transfers)
+ * Server-side storage for display names (private alias)
+ * Support for handwritten messages (read-only)
+ * Support for voice clips (receive-only)
+ * Option to hide Plus! tags
+
+Other features:
+
+ * Support for personal status messages
+ * Support for offline messaging (read-only)
+ * Send custom emoticons (Pidgin >= 2.5)
+
+Future plans:
+
+ * Complete direct connection (fast file-transfers)
+ * MSNP15 support
+ * Complete GObjectification
+
+For questions, comments or patches contact:
+http://groups.google.com/group/msn-pecan

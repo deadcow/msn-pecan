@@ -1,0 +1,57 @@
+--- switchboard-orig.c	2009-01-12 17:00:56.000000000 -0200
++++ switchboard.c	2009-01-12 17:26:41.000000000 -0200
+@@ -24,6 +24,7 @@
+ #include "session.h"
+ #include "switchboard.h"
+ #include "notification.h"
++#include "fix_purple.h"
+ 
+ #if defined(PECAN_CVR)
+ #include "cvr/slplink.h"
+@@ -998,10 +999,12 @@
+ {
+     PurpleConnection *gc;
+     MsnSwitchBoard *swboard;
++    PurpleBuddy *buddy;
+     const char *body;
+     char *body_str;
+     char *body_enc;
+     char *body_final;
++    char *alias_backup = NULL;
+     size_t body_len;
+     const char *passport;
+     const char *value;
+@@ -1017,6 +1020,8 @@
+ 
+     passport = msg->remote_user;
+ 
++    buddy = purple_find_buddy(purple_connection_get_account(gc), passport);
++
+     if (!strcmp(passport, "messenger@microsoft.com") &&
+         strstr(body, "immediate security update"))
+     {
+@@ -1030,6 +1035,12 @@
+     }
+ #endif
+ 
++    if ((value = msn_message_get_attr(msg, "P4-Context")) != NULL)
++    {
++        alias_backup = g_strdup(buddy->alias);
++        purple_buddy_set_displayname(gc, passport, value);
++    }
++
+     if ((value = msn_message_get_attr(msg, "X-MMS-IM-Format")) != NULL)
+     {
+         char *pre, *post;
+@@ -1078,6 +1089,12 @@
+         }
+     }
+ 
++    if (alias_backup)
++    {
++        purple_buddy_set_displayname(gc, passport, alias_backup);
++        g_free(alias_backup);
++    }
++
+     g_free(body_final);
+ }
