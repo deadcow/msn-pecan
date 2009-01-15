@@ -1252,15 +1252,15 @@ got_voice_clip(MsnSlpCall *slpcall, const guchar *data, gsize size)
 
         if ((conv = msn_switchboard_get_conv(slpcall->slplink->swboard)) != NULL)
         {
-            text = g_strdup_printf("You are playing the file:\n%s", decoded_file);
+            text = g_strdup_printf("%s sent you a voice clip.", slpcall->slplink->remote_user);
 
-            purple_request_action(conv, NULL, _("Voice-clip"), text, 0,
+            purple_request_action(conv, NULL, _("Voice clip"), text, 0,
                                     purple_conversation_get_account(conv), NULL, conv,
                                     decoded_file, 2,
-                                    _("Play"), G_CALLBACK(voice_clip_play),
+                                    _("OK"), G_CALLBACK(voice_clip_play),
                                     _("Cancel"), NULL);
+            g_free(text);
         }
-        g_free(text);
 
         /* str = g_strdup_printf("sent you a voice clip. Click <a href='file://%s'>here</a> to play it.", decoded_file);
         got_datacast_inform_user(slpcall->slplink->swboard->cmdproc, slpcall->slplink->remote_user, str);
