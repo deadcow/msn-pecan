@@ -1264,8 +1264,6 @@ got_voice_clip(MsnSlpCall *slpcall, const guchar *data, gsize size)
         {
             text = g_strdup_printf("%s sent you a voice clip.", slpcall->slplink->remote_user);
 
-
-
             purple_request_action(conv, NULL, _("Voice clip"), text, 0,
                                     purple_conversation_get_account(conv), NULL, conv,
                                     decoded_file, 2,
