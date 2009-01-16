@@ -1271,6 +1271,7 @@ got_voice_clip(MsnSlpCall *slpcall, const guchar *data, gsize size)
                                     decoded_file, 2,
                                     _("OK"), G_CALLBACK(voice_clip_play),
                                     _("Cancel"), NULL);
+
             purple_conversation_write(slpcall->slplink->swboard->conv, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
             g_free(text);
         }

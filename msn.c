@@ -921,8 +921,6 @@ msn_msg_emoticon_add(GString *current, MsnEmoticon *emoticon)
 static void
 msn_send_voice_clip(MsnSwitchBoard *swboard, const char *filepath)
 {
-    g_return_if_fail(swboard != NULL);
-    //purple_sound_play_file("/tmp/purple03NQNU_decoded.wav", NULL);
     printf("filepath=[%s]\n", filepath);
 }
 
