@@ -1226,7 +1226,17 @@ got_datacast_inform_user (MsnCmdProc *cmdproc,
 static void
 voice_clip_play(const char *filename)
 {
-    purple_sound_play_file(filename, NULL);    
+    /* Necessary to call this function, impossible to use gpointer */
+    if (purple_prefs_get_bool("/pidgin/sound/mute"))
+    {
+        purple_prefs_set_bool("/pidgin/sound/mute", FALSE);
+        purple_sound_play_file(filename, NULL);
+        purple_prefs_set_bool("/pidgin/sound/mute", TRUE);
+    }
+    else
+    {
+        purple_sound_play_file(filename, NULL);
+    }
 }
 
 static void
@@ -1254,11 +1264,14 @@ got_voice_clip(MsnSlpCall *slpcall, const guchar *data, gsize size)
         {
             text = g_strdup_printf("%s sent you a voice clip.", slpcall->slplink->remote_user);
 
+
+
             purple_request_action(conv, NULL, _("Voice clip"), text, 0,
                                     purple_conversation_get_account(conv), NULL, conv,
                                     decoded_file, 2,
                                     _("OK"), G_CALLBACK(voice_clip_play),
                                     _("Cancel"), NULL);
+            purple_conversation_write(slpcall->slplink->swboard->conv, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
             g_free(text);
         }
 
