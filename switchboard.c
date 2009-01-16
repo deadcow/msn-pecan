@@ -1183,60 +1183,14 @@ control_msg(MsnCmdProc *cmdproc, MsnMessage *msg)
 }
 
 #if defined(PECAN_CVR)
-/*
-static void
-got_datacast_inform_user (MsnCmdProc *cmdproc,
-                          const char *passport,
-                          const char *str)
-{
-    PurpleAccount *account;
-    MsnSwitchBoard *swboard;
-    PecanContact *contact;
-    const char *friendly_name;
-
-    account = cmdproc->session->account;
-    swboard = cmdproc->data;
-    contact = pecan_contactlist_find_contact(cmdproc->session->contactlist, passport);
-    friendly_name = pecan_contact_get_friendly_name(contact);
-    if (!friendly_name)
-        friendly_name = passport;
-
-    str = g_strdup_printf("%s %s", friendly_name, str);
-
-    Grab the conv for this swboard. If there isn't one and it's an IM then create it,
-    otherwise the smileys won't work, this needs to be fixed. 
-    if (!swboard->conv)
-    {
-        if (swboard->current_users > 1)
-            swboard->conv = purple_find_chat(account->gc, swboard->chat_id);
-        else
-        {
-            swboard->conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_IM,
-                                                                  passport, account);
-            if (!swboard->conv)
-                swboard->conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, account, passport);
-        }
-    }
-    swboard->flag |= MSN_SB_FLAG_IM;
-
-    purple_conversation_write(swboard->conv, NULL, str, PURPLE_MESSAGE_SYSTEM, time(NULL));
-}
-*/
-
 static void
 voice_clip_play(const char *filename)
 {
-    /* Necessary to call this function, impossible to use gpointer */
-    if (purple_prefs_get_bool("/pidgin/sound/mute"))
-    {
-        purple_prefs_set_bool("/pidgin/sound/mute", FALSE);
-        purple_sound_play_file(filename, NULL);
-        purple_prefs_set_bool("/pidgin/sound/mute", TRUE);
-    }
-    else
-    {
-        purple_sound_play_file(filename, NULL);
-    }
+    /* impossible the use of gpointer, necessary for the
+     * purple_sound_play_file()
+     */
+
+    purple_sound_play_file(filename, NULL);
 }
 
 static void
@@ -1257,31 +1211,31 @@ got_voice_clip(MsnSlpCall *slpcall, const guchar *data, gsize size)
         strcpy(decoded_file, file);
         strcat(decoded_file, "_decoded.wav");
 
-
         decode_wav_using_siren7 (file, decoded_file);
 
         if ((conv = msn_switchboard_get_conv(slpcall->slplink->swboard)) != NULL)
         {
-            text = g_strdup_printf("%s sent you a voice clip.", slpcall->slplink->remote_user);
+            if (!purple_prefs_get_bool("/pidgin/sound/mute"))
+            {
+                text = g_strdup_printf("%s sent you a voice clip.", slpcall->slplink->remote_user);
 
-            purple_request_action(conv, NULL, _("Voice clip"), text, 0,
-                                    purple_conversation_get_account(conv), NULL, conv,
-                                    decoded_file, 2,
-                                    _("OK"), G_CALLBACK(voice_clip_play),
-                                    _("Cancel"), NULL);
+                purple_request_action(conv, NULL, _("Voice clip"), text, 0,
+                                        purple_conversation_get_account(conv), NULL, conv,
+                                        decoded_file, 2,
+                                        _("OK"), G_CALLBACK(voice_clip_play),
+                                        _("Cancel"), NULL);
 
-            purple_conversation_write(slpcall->slplink->swboard->conv, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
-            g_free(text);
+                purple_conversation_write(slpcall->slplink->swboard->conv, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
+                g_free(text);
+            }
+            else
+            {
+                text = g_strdup_printf("%s trying send to you a voice clip, but you set mute on all sounds.", slpcall ->slplink->remote_user);
+                purple_conversation_write(slpcall->slplink->swboard->conv, NULL, text, PURPLE_MESSAGE_SYSTEM, time(NULL));
+
+                g_free(text);
+            }
         }
-
-        /* str = g_strdup_printf("sent you a voice clip. Click <a href='file://%s'>here</a> to play it.", decoded_file);
-        got_datacast_inform_user(slpcall->slplink->swboard->cmdproc, slpcall->slplink->remote_user, str);
-    } else {
-        pecan_error ("couldn't create temporany file to store the received voice clip!\n");
-
-        str = g_strdup_printf("sent you a voice clip, but it cannot be played due to an error happened while storing the file.");
-        got_datacast_inform_user(slpcall->slplink->swboard->cmdproc, slpcall->slplink->remote_user, str);
-        */
     }
 }
 #endif /* defined(PECAN_CVR) */
